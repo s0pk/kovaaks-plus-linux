@@ -1,22 +1,61 @@
-# Kovaak's Plus — Linux port
+# Kovaak's Plus for Linux
 
-A native Linux port of [Izunalol/kovaaks-plus](https://github.com/Izunalol/kovaaks-plus), a companion app for KovaaK's FPS Aim Trainer. You browse, launch, tag and review everything here, and the game only comes forward while you're aiming.
+A native Linux port of [Kovaak's Plus](https://github.com/Izunalol/kovaaks-plus), a companion app for KovaaK's FPS Aim Trainer. You browse, launch, tag and review everything in the app, and the game only comes forward while you're aiming.
 
-It runs natively (no Wine). KovaaK's itself is a Windows game, so it runs through Steam Play / Proton as usual; this app sits next to it, watches it from the outside, and talks to Steam.
+- **No Wine, no browser.** The interface is a native Qt Quick window; a small .NET backend watches the game from the outside and talks to Steam.
+- KovaaK's itself is a Windows game, so it still runs through Steam Play / Proton as usual. This app sits next to it.
+- Scenario library with tags, presets and thumbnails, run statistics, benchmarks with the same ranks and energy as [evxl.app](https://evxl.app), leaderboards, a results screen with PB celebration, and `.kpack` sharing (compatible with the Windows version).
+
+Original project: [Izunalol/kovaaks-plus](https://github.com/Izunalol/kovaaks-plus) (Windows, C#/WebView2). This port is shared with the original author's permission.
+
+Tested on CachyOS with KDE Plasma 6 (Wayland) and an NVIDIA GPU. Other setups are listed under [Desktop support](#desktop-support).
 
 ## Install
 
-Requirements: a recent Linux desktop, Steam with KovaaK's installed, the [.NET 8 SDK](https://dotnet.microsoft.com/download) to build, and for the native window Qt 6.5+ (Quick, Quick Controls, WebSockets, Svg, Multimedia and Wayland; Arch: `qt6-declarative qt6-websockets qt6-svg qt6-multimedia qt6-wayland`) with `cmake` and `ninja` to build it. The UI is a native Qt Quick window with no browser involved. If it isn't built, the app falls back to a Chromium-based browser's app window (Chrome, Chromium, Brave, Edge or Vivaldi), and without one to a built-in WebKitGTK window (`webkit2gtk-4.1` and `gtk3`). File dialogs use the platform's own dialog (or `kdialog`/`zenity` in the browser modes).
+### 1. Dependencies
+
+| What | Needed for | Arch / CachyOS / Manjaro |
+|---|---|---|
+| Steam with KovaaK's installed | the game (Proton) | `steam` |
+| .NET 8 SDK | building the backend (the built app is self-contained) | `dotnet-sdk-8.0` |
+| CMake 3.21+, Ninja, a C++20 compiler | building the Qt window | `cmake ninja gcc` |
+| Qt 6.5+: base, declarative (Quick, Controls, Dialogs, Shapes), websockets, svg, multimedia | the window (build and run) | `qt6-base qt6-declarative qt6-websockets qt6-svg qt6-multimedia qt6-multimedia-ffmpeg qt6-wayland qt6-shadertools` |
+| libX11 and libXtst | sending the restart key to the game (XWayland/X11) | `libx11 libxtst` |
+| A desktop portal for your desktop (file dialogs) | Browse / Save dialogs | `xdg-desktop-portal-kde`, `-gnome`, `-gtk`, `-hyprland` … |
+
+Optional:
+- `ydotool`: fallback for sending the restart key.
+- A Chromium-based browser or `webkit2gtk-4.1` + `gtk3`: only used if the Qt window isn't built (see [UI hosts](#ui-hosts)).
+
+Other distributions (not tested, package names are the usual ones):
+- **Fedora:** `dotnet-sdk-8.0 cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwebsockets-devel qt6-qtsvg-devel qt6-qtmultimedia-devel qt6-qtwayland libX11 libXtst`
+- **Debian 13 / Ubuntu 24.04+:** `dotnet-sdk-8.0 cmake ninja-build g++ qt6-base-dev qt6-declarative-dev qt6-websockets-dev qt6-svg-dev qt6-multimedia-dev qt6-wayland libx11-6 libxtst6 qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qml6-module-qtquick-window qml6-module-qtmultimedia`
+
+The pre-6.5 Qt in older distributions will not work.
+
+### 2. Build and install
 
 ```bash
-./build.sh      # → dist/kovaaks-plus (self-contained backend) and dist/kovaaks-plus-ui (native Qt window)
-./install.sh    # → ~/.local/bin, app menu entry and icon (no root)
+git clone https://github.com/s0pk/kovaaks-plus-linux.git
+cd kovaaks-plus-linux
+./build.sh      # → dist/kovaaks-plus (backend) and dist/kovaaks-plus-ui (Qt window)
+./install.sh    # → ~/.local/bin, app menu entry and icon (no root needed)
 kovaaks-plus --diagnose   # shows what the app found and what works on your desktop
 ```
 
-On first launch it finds KovaaK's (including libraries on other drives, Flatpak and Snap Steam), its Workshop scenarios and your Steam account by itself. Click **Let's go**. Your data lives in `~/.local/share/KovaaksPlus` (override with `KPLUS_DATA_DIR`). Tags, names and presets are plain files; share yours as `.kpack` files (Import / Export page). Packs use the same format as the Windows version.
+Make sure `~/.local/bin` is on your `PATH`, or start it from the app menu ("Kovaak's Plus").
 
-### Pause key detection: join the `input` group
+If `./build.sh` can't find `cmake` or `ninja` it still builds the backend and the app falls back to a browser window; install them and run it again to get the native window.
+
+To uninstall: delete `~/.local/bin/kovaaks-plus`, `~/.local/bin/kovaaks-plus-ui`, `~/.local/share/applications/kovaaks-plus.desktop` and the icon `~/.local/share/icons/hicolor/256x256/apps/kovaaks-plus.png`. Your data stays in `~/.local/share/KovaaksPlus` until you remove it.
+
+### 3. First launch
+
+Start **Kovaak's Plus**. It finds KovaaK's by itself (including libraries on other drives, Flatpak and Snap Steam), its Workshop scenarios and your Steam account. Check the three ticks and click **Let's go**. Your data lives in `~/.local/share/KovaaksPlus` (override with `KPLUS_DATA_DIR`). Tags, names and presets are plain files; share yours as `.kpack` files (Import / Export page, or drop a file on the window). Packs use the same format as the Windows version.
+
+In KovaaK's, set the display mode to **Windowed Fullscreen** so switching between the game and this app is instant, and leave **Pause on loss of focus** on.
+
+### 4. Pause key detection: join the `input` group
 
 Pressing Esc in game is detected by reading the keyboard from `/dev/input` (works on X11 and every Wayland compositor; only the one configured key is looked at). That needs read access:
 
@@ -26,7 +65,7 @@ sudo usermod -aG input $USER   # then log out and back in
 
 Without it the app falls back to a limited mode that only sees the key while the game window itself has focus (usually enough with XWayland, but less reliable). `kovaaks-plus --diagnose` tells you which mode you're in.
 
-### Desktop support
+## Desktop support
 
 | Desktop | Focus / close game | Pause detection | Notes |
 |---|---|---|---|
@@ -36,11 +75,38 @@ Without it the app falls back to a limited mode that only sees the key while the
 | Sway | `swaymsg` | via `swaymsg` | **Untested** |
 | GNOME Wayland | EWMH via XWayland only | XWayland only | Mutter refuses to let background apps take focus; expect "ready" notifications instead of a raise |
 
-Force a backend with `KPLUS_WINDOW_BACKEND=kwin|hyprland|sway|x11|none`. The restart key is pressed through XTEST (reaches XWayland, i.e. Proton games); `ydotool` is used as a fallback.
+Force a backend with `KPLUS_WINDOW_BACKEND=kwin|hyprland|sway|x11|none`. The restart key is pressed through XTEST (reaches XWayland, i.e. Proton games); `ydotool` is used as a fallback. Native Wayland (non-XWayland) game windows can be focused and closed, but the "is the game focused" check used for pause detection only sees X11/XWayland windows on KDE.
 
-UI host and rendering: the native Qt window is used when `kovaaks-plus-ui` is installed next to the app (`KPLUS_UI_BIN=<path>` points at another build, `KPLUS_GPU_API=opengl|vulkan|software` picks its scene-graph back end); `KPLUS_HOST=chromium` or `KPLUS_HOST=webkit` forces a browser window or the built-in WebKitGTK window instead; `KPLUS_BROWSER=<path>` picks a specific browser; in Chromium `KPLUS_GPU_API=gl|vulkan|software` selects the GPU back end (default `gl`; `vulkan` runs through ANGLE and measured the same on an RTX 4060); `KPLUS_BROWSER_FLAGS="..."` adds extra browser flags. The app talks to its window over a loopback WebSocket protected by a per-run secret token and an origin check.
+## UI hosts
 
-Environment switches: `KPLUS_DEV=1` (devtools and UI logging), `KPLUS_UI_DIR=<wwwroot>` (edit the UI live), `KPLUS_GPU_RENDER=1` (use WebKit's hardware renderer instead of the software fallback, see below).
+The backend can show its interface in three ways, tried in this order:
+1. **Native Qt window** (`kovaaks-plus-ui`, installed next to `kovaaks-plus`). The default.
+2. A **Chromium-based browser's app window** (Chrome, Chromium, Brave, Edge or Vivaldi) with its own profile.
+3. A built-in **WebKitGTK window** (`webkit2gtk-4.1`, `gtk3`).
+
+Force one with `KPLUS_HOST=qml|chromium|webkit`. The window talks to the backend over a loopback WebSocket protected by a per-run secret token and an origin check.
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| `KPLUS_DATA_DIR` | where app data is stored (default `~/.local/share/KovaaksPlus`) |
+| `KPLUS_HOST` | `qml`, `chromium` or `webkit` |
+| `KPLUS_UI_BIN` | path to a specific `kovaaks-plus-ui` build |
+| `KPLUS_GPU_API` | Qt window: `opengl`, `vulkan` or `software`. Chromium: `gl`, `vulkan` or `software` |
+| `KPLUS_BROWSER`, `KPLUS_BROWSER_FLAGS` | pick a browser / extra flags for the Chromium host |
+| `KPLUS_WINDOW_BACKEND` | `kwin`, `hyprland`, `sway`, `x11` or `none` |
+| `KPLUS_KEY_SOURCE=x11` | skip evdev and read the pause key through X11 |
+| `KPLUS_DEV=1` | developer logging (and `KPLUS_UI_DIR=<wwwroot>` to edit the web UI live) |
+
+## Troubleshooting
+
+- **`module "QtQuick.Dialogs" is not installed` (or another QML module):** the Qt declarative package is missing or too old; install the packages from the table above.
+- **Blank or frozen window on NVIDIA:** the app already sets `__NV_DISABLE_EXPLICIT_SYNC=1` for itself. Try `KPLUS_GPU_API=software kovaaks-plus`, and `kovaaks-plus --diagnose`.
+- **Esc is not detected / the app doesn't come forward on pause:** join the `input` group (above) and check `--diagnose`.
+- **Video previews are blank:** install the Qt multimedia FFmpeg backend (`qt6-multimedia-ffmpeg` on Arch).
+- **File dialogs look wrong or don't open:** install the desktop portal for your desktop (`xdg-desktop-portal-kde`, `-gnome`, `-gtk`).
+- **"The Qt window isn't being used":** `kovaaks-plus --diagnose` prints which host was picked; `kovaaks-plus-ui` must be in the same folder as `kovaaks-plus` or on `PATH`.
 
 ## How the window switching works
 
@@ -91,7 +157,7 @@ The queue is the list you launched from: a benchmark difficulty, a calculator pl
 
 ## Customising
 
-- **App Settings → Appearance:** theme (7 dark themes), accent and secondary colours, font, interface scale, corners, density, scenario card size, glow, animations, PB highlighting and dimming of earlier runs.
+- **App Settings → Appearance:** theme (8 dark themes), accent and secondary colours, font, interface scale, corners, density, scenario card size, glow, animations, PB highlighting and dimming of earlier runs.
 - **Benchmark → Table settings (sliders icon):** evxl-style layout options such as density, bar style, skew, radii, category shading, rank-column colours, a per-subcategory gradient behind the scores and energy, font, text size, separate contrast for rank and score text, leaderboard position, progress %, and simplified names.
 - **Manage tags:** drag tags by their handle, or use the arrows, to reorder them or move them between groups. Groups can be reordered too. Tag order decides sidebar order, and which tag's thumbnail and preset win.
 
@@ -136,33 +202,40 @@ Benchmarks work like evxl.app: one entry per benchmark, difficulties as tabs, th
   - Catalog, profile ranks, friends and scenario classification: [evxl.app's API](https://api.evxl.app/documentation).
   - Benchmark grouping, layouts and scoring methods: evxl.app's site config, because the documented API has no endpoint for them. If the site changes, names fall back to the `rank-counts` endpoint.
 
-## Building from source
+## Building and developing
 
 ```bash
-./build.sh                     # release binary → dist/kovaaks-plus
-dotnet run --project src/KovaaksPlus            # run from source
-dotnet run --project tests/Smoke -- --network   # RPC smoke tests against a temp copy of your game data
+./build.sh                                        # release build → dist/
+dotnet run --project src/KovaaksPlus              # run the backend from source
+cmake -S ui -B ui/build -G Ninja && cmake --build ui/build   # just the Qt window → ui/build/kovaaks-plus-ui
+dotnet run --project tests/Smoke -- --network     # RPC smoke tests against a temp copy of your game data
 ```
 
-Project layout (`src/KovaaksPlus`):
-- `HostBase.cs`/`SocketHost.cs`: JSON-RPC bridge shared by the UI hosts; `QmlHost.cs` runs the native Qt window, `ChromiumHost.cs` a browser app window, `AppWindow.cs` the Photino (WebKitGTK) fallback
-- `UiServer.cs`: loopback server for the UI, thumbnails and crosshairs (supports video seeking)
-- `Api.cs`: every UI action
-- `GameWatcher.cs`: game process, key watcher, stats watcher and focus switching
-- `Platform/`: Linux layer: X11/XTEST, window-system backends (KWin, Hyprland, Sway, EWMH), evdev key watcher, /proc helpers
-- `GamePaths.cs`: finds Steam libraries and the game's Proton prefix
-- `StatsIndex.cs`, `ScenarioLibrary.cs`, `SettingsManager.cs`, `PackManager.cs`, `EvxlClient.cs`: unchanged logic from upstream
-- `wwwroot/`: the web UI used by the browser hosts (plain HTML/CSS/JS modules, no build step)
+When running the backend from source, point it at a freshly built window with `KPLUS_UI_BIN=$PWD/ui/build/kovaaks-plus-ui`.
 
-The native UI lives in `ui/` (Qt Quick / QML, one flat folder of components in `ui/qml`, ported logic in `ui/qml/js`, bundled fonts in `ui/assets`). It speaks the same JSON-RPC to the backend, so both UIs stay in step. Build it on its own with `cmake -S ui -B ui/build -G Ninja && cmake --build ui/build`.
+Project layout:
+- `src/KovaaksPlus/`: the .NET backend
+  - `Api.cs`: every UI action (JSON-RPC)
+  - `HostBase.cs`, `SocketHost.cs`: RPC bridge shared by the UI hosts; `QmlHost.cs` runs the Qt window, `ChromiumHost.cs` a browser window, `AppWindow.cs` the WebKitGTK window
+  - `UiServer.cs`: loopback server (RPC socket, thumbnails, crosshairs)
+  - `GameWatcher.cs`: game process, key watcher, stats watcher and focus switching
+  - `Platform/`: Linux layer: X11/XTEST, window backends (KWin, Hyprland, Sway, EWMH), evdev key watcher, /proc helpers
+  - `GamePaths.cs`: finds Steam libraries and the game's Proton prefix
+  - `StatsIndex.cs`, `ScenarioLibrary.cs`, `SettingsManager.cs`, `PackManager.cs`, `EvxlClient.cs`: logic from the original project
+  - `wwwroot/`: the web UI used by the browser hosts (plain HTML/CSS/JS, no build step)
+- `ui/`: the native Qt Quick window. All components sit in one folder, `ui/qml` (Qt resolves siblings by directory), logic ported from the web UI is in `ui/qml/js`, bundled fonts and sounds in `ui/assets`.
+- `tests/Smoke`: RPC smoke tests.
+- `packaging/`: desktop entry and icon.
 
 ## Look and feel
 
-The Linux port ships its own visual identity, "Range": charcoal and bone, squared frames, large condensed numerals (Big Shoulders Display for headings and scores, Instrument Sans for text). The interface is deliberately colourless so scores, PBs, ranks and scenario art carry the colour. A reticle-style corner bracket marks what is selected, hovered or current. The native UI implements it with design tokens in `ui/qml/Theme.qml`, the web UI with `wwwroot/css/range.css` on top of the upstream `app.css`; the old themes (Midnight, OLED, Nord…) and the font choices in App Settings → Appearance still work. Both fonts are bundled under the SIL Open Font License (`wwwroot/fonts/LICENSE-*.txt`, `ui/assets/LICENSE-*.txt`).
+The Linux port ships its own visual identity, "Range": charcoal and bone, squared frames, large condensed numerals (Big Shoulders Display for headings and scores, Instrument Sans for text). The interface is deliberately colourless so scores, PBs, ranks and scenario art carry the colour. A reticle-style corner bracket marks what is selected, hovered or current. The native UI implements it with design tokens in `ui/qml/Theme.qml`, the web UI with `wwwroot/css/range.css`. The themes (Midnight, OLED, Nord…) and accent colours in App Settings → Appearance still work. Both fonts are bundled under the SIL Open Font License (`ui/assets/LICENSE-*.txt`).
 
-## Notes for this port
+## Notes
 
-- **NVIDIA + Wayland:** the app always sets `__NV_DISABLE_EXPLICIT_SYNC=1` for itself (also used by the Qt window). WebKitGTK crashes at startup with "explicit sync is used, but no acquire point is set" on some NVIDIA drivers. The app sets `__NV_DISABLE_EXPLICIT_SYNC=1` (always) and `WEBKIT_DISABLE_DMABUF_RENDERER=1` (software rendering, the safe default) for itself unless you set them yourself; `KPLUS_GPU_RENDER=1` keeps the hardware renderer.
 - KovaaK's per-user files (`session.sav`, `Input.ini`) are read from the game's Proton prefix (`steamapps/compatdata/824270/pfx/...`).
-- Native Wayland (non-XWayland) game windows can be focused and closed, but the "is the game focused" check used for pause detection only sees X11/XWayland windows on KDE.
-- The upstream project ships no license file; this port is for personal use. Ask the upstream author before redistributing.
+- Not yet verified on a real desktop: video previews in the Qt window, Hyprland and Sway support, drag-and-drop of `.kpack` files onto the window.
+
+## Credits
+
+Kovaak's Plus is by [Izunalol](https://github.com/Izunalol); this is a Linux port of it. Benchmark data comes from [evxl.app](https://evxl.app) and KovaaK's.
