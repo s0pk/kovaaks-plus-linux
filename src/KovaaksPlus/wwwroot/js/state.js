@@ -76,7 +76,7 @@ export async function saveConfig(patch) {
 }
 
 export function applyAccent() {
-  document.documentElement.style.setProperty('--accent', state.config.accent || '#8b5cf6');
+  document.documentElement.style.setProperty('--accent', state.config.accent || '#ece8de');
 }
 
 export async function setTags(tags, groups) {

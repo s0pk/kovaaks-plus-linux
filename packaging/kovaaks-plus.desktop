@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Kovaak's Plus
+Comment=Companion interface for KovaaK's FPS Aim Trainer
+Exec=kovaaks-plus
+Icon=kovaaks-plus
+Terminal=false
+Categories=Game;Utility;
+StartupWMClass=kovaaks-plus

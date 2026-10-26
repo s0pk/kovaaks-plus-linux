@@ -10,7 +10,7 @@ public sealed class Api
     public static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".mp4", ".webm" };
 
-    readonly MainForm _form;
+    readonly IAppHost _form;
     public AppConfig Config { get; private set; }
     public GamePaths? Paths { get; private set; }
     public readonly StatsIndex Stats = new();
@@ -23,11 +23,12 @@ public sealed class Api
     PackManager? _packs;
     Task? _loading;
 
-    public Api(MainForm form)
+    public Api(IAppHost form, Action<Action> post)
     {
         _form = form;
         Config = Json.Read<AppConfig>(AppPaths.Config) ?? new AppConfig();
-        Watcher = new GameWatcher(form, () => Config);
+        Watcher = new GameWatcher(post, () => Config);
+        Watcher.Notice += text => _form.Emit("toast", new { text, kind = "error" });
         Watcher.StatusChanged += running => _form.Emit("game.status", new { running, currentScenario = Watcher.CurrentScenario });
         Watcher.ScenarioStarted += name => _form.Emit("game.scenario", new { name });
         Watcher.PauseDetected += OnPause;
@@ -57,6 +58,7 @@ public sealed class Api
         Paths = p;
         _settings = new SettingsManager(p);
         _packs = new PackManager(p, Scenarios, Library, Presets);
+        p.MakeCurrent();
         _form.OnGamePathsReady(p);
         Watcher.Start(p);
         _loading = Task.Run(() =>
@@ -82,7 +84,8 @@ public sealed class Api
             case "app.init":
                 return new
                 {
-                    version = Application.ProductVersion.Split('+')[0],
+                    version = (System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "1.1.0").Split('+')[0],
                     config = Config,
                     firstRun = !Config.SetupComplete,
                     valid = Paths != null,
@@ -91,6 +94,15 @@ public sealed class Api
                     statsReady = Stats.Ready,
                     dataFolder = AppPaths.Root,
                 };
+            case "app.log":
+                // UI diagnostics: printed only in dev mode (KPLUS_DEV=1) so the console stays quiet for normal use.
+                if (Environment.GetEnvironmentVariable("KPLUS_DEV") == "1") Console.Error.WriteLine("[ui] " + Json.Get(p, "text", ""));
+                return null;
+            case "app.devEmit":
+                // UI development aid (KPLUS_DEV=1 only): pushes an event to the page as if the game had produced it.
+                if (Environment.GetEnvironmentVariable("KPLUS_DEV") == "1")
+                    _form.Emit(Json.Get(p, "event", ""), p.TryGetProperty("data", out var ev) ? JsonNode.Parse(ev.GetRawText()) : null);
+                return null;
             case "app.detect":
                 return GamePaths.Detect();
             case "app.saveConfig":
@@ -112,8 +124,7 @@ public sealed class Api
             }
             case "app.pickFolder":
             {
-                using var dlg = new FolderBrowserDialog { Description = Json.Get(p, "title", "Select folder"), UseDescriptionForTitle = true };
-                return dlg.ShowDialog(_form) == DialogResult.OK ? dlg.SelectedPath : null;
+                return _form.PickFolder(Json.Get(p, "title", "Select folder"));
             }
             case "app.openUrl":
             {
@@ -122,7 +133,7 @@ public sealed class Api
                 return null;
             }
             case "game.restartKey":
-                return new { detected = GameWatcher.DetectRestartKey()?.ToString(), effective = Watcher.RestartKey().ToString() };
+                return new { detected = GameWatcher.DetectRestartKey()?.Name, effective = Watcher.RestartKey().Name };
             case "stats.positions":
             {
                 // Your global position on every scenario evxl rates (refreshed daily by evxl).
@@ -250,18 +261,27 @@ public sealed class Api
             case "media.pick":
             {
                 var kind = Json.Get(p, "kind", "image");
-                using var dlg = new OpenFileDialog
-                {
-                    Title = kind == "video" ? "Choose a preview (image, GIF or video)" : "Choose an image",
-                    Filter = kind == "video"
-                        ? "Images & video|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp;*.mp4;*.webm"
-                        : "Images|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp",
-                };
-                if (dlg.ShowDialog(_form) != DialogResult.OK) return null;
-                var ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
+                var picked = kind == "video"
+                    ? _form.PickOpenFile("Choose a preview (image, GIF or video)", ("Images & video", new[] { "png", "jpg", "jpeg", "gif", "webp", "bmp", "mp4", "webm" }))
+                    : _form.PickOpenFile("Choose an image", ("Images", new[] { "png", "jpg", "jpeg", "gif", "webp", "bmp" }));
+                if (picked == null) return null;
+                var ext = Path.GetExtension(picked).ToLowerInvariant();
                 if (!MediaExtensions.Contains(ext)) throw new InvalidOperationException("Unsupported file type");
                 var name = MediaTarget(Json.Get<string?>(p, "owner", null), Json.Get<string?>(p, "target", null), ext);
-                File.Copy(dlg.FileName, MediaFull(name));
+                File.Copy(picked, MediaFull(name));
+                return name;
+            }
+            case "media.importPath":
+            {
+                // A file dropped onto the native UI arrives as a path (the browser UI sends data URLs instead).
+                var path = Json.Get(p, "path", "");
+                if (path.StartsWith("file://")) path = Uri.UnescapeDataString(path["file://".Length..]);
+                if (!File.Exists(path)) throw new FileNotFoundException("File not found");
+                var ext = Path.GetExtension(path).ToLowerInvariant();
+                if (!MediaExtensions.Contains(ext)) throw new InvalidOperationException("Unsupported file type");
+                if (new FileInfo(path).Length > 60L * 1024 * 1024) throw new InvalidOperationException("That file is too large (60 MB max)");
+                var name = MediaTarget(Json.Get<string?>(p, "owner", null), Json.Get<string?>(p, "target", null), ext);
+                File.Copy(path, MediaFull(name));
                 return name;
             }
             case "media.openFolder":
@@ -347,13 +367,9 @@ public sealed class Api
                 var target = Json.Get<string?>(p, "path", null);
                 if (target == null)
                 {
-                    using var dlg = new SaveFileDialog
-                    {
-                        Title = "Export pack", Filter = "Kovaak's Plus pack|*.kpack",
-                        FileName = string.Concat(name.Split(Path.GetInvalidFileNameChars())) + ".kpack",
-                    };
-                    if (dlg.ShowDialog(_form) != DialogResult.OK) return null;
-                    target = dlg.FileName;
+                    target = _form.PickSaveFile("Export pack", Native.SafeFileName(name) + ".kpack", ("Kovaak's Plus pack", new[] { "kpack" }));
+                    if (target == null) return null;
+                    if (!target.EndsWith(".kpack", StringComparison.OrdinalIgnoreCase)) target += ".kpack";
                 }
                 return await Task.Run(() => packs.Export(target, name, Json.Get<string?>(p, "author", null),
                     Json.Get<string?>(p, "description", null), Json.Get(p, "scenarios", new List<string>()), Json.Get(p, "presets", new List<string>())));
@@ -364,9 +380,8 @@ public sealed class Api
                 var path = Json.Get<string?>(p, "path", null);
                 if (path == null)
                 {
-                    using var dlg = new OpenFileDialog { Title = "Import pack", Filter = "Kovaak's Plus pack|*.kpack;*.zip" };
-                    if (dlg.ShowDialog(_form) != DialogResult.OK) return null;
-                    path = dlg.FileName;
+                    path = _form.PickOpenFile("Import pack", ("Kovaak's Plus pack", new[] { "kpack", "zip" }));
+                    if (path == null) return null;
                 }
                 return packs.Preview(path);
             }
@@ -477,12 +492,12 @@ public sealed class Api
     }
 
     // ---------- media files ----------
-    // Thumbnails/previews/icons are stored under %APPDATA%\KovaaksPlus\media\<scenarios|tags|presets>\<name>\,
+    // Thumbnails/previews/icons are stored under ~/.local/share/KovaaksPlus/media/<scenarios|tags|presets>/<name>/,
     // so they're easy to find; values are paths relative to the media folder ("tags/Static Clicking/thumbnail-1a2b3c.png").
 
     static string SafeName(string s)
     {
-        var clean = string.Concat(s.Split(Path.GetInvalidFileNameChars())).Trim().TrimEnd('.');
+        var clean = Native.SafeFileName(s).Trim().TrimEnd('.');
         return clean.Length == 0 ? "unnamed" : clean.Length > 80 ? clean[..80] : clean;
     }
 
@@ -505,7 +520,7 @@ public sealed class Api
     {
         var root = Path.GetFullPath(AppPaths.Media);
         var full = Path.GetFullPath(Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar)));
-        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Invalid media path");
+        if (!full.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) throw new InvalidOperationException("Invalid media path");
         return full;
     }
 
@@ -514,7 +529,7 @@ public sealed class Api
     /// <summary>Every media value still referenced (scenario/tag/preset thumbnails, previews, tag icons) → owner description.</summary>
     Dictionary<string, string> MediaReferences()
     {
-        var refs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var refs = new Dictionary<string, string>(StringComparer.Ordinal);
         void Add(string? rel, string owner)
         {
             if (string.IsNullOrWhiteSpace(rel) || rel.StartsWith("ic:")) return;
@@ -546,7 +561,7 @@ public sealed class Api
     }
 
     /// <summary>
-    /// Sends the chosen unused files to the Recycle Bin (re-checking that nothing references them now),
+    /// Sends the chosen unused files to the Trash (re-checking that nothing references them now),
     /// removes empty media folders, and optionally clears references to files that no longer exist.
     /// </summary>
     object CleanMedia(List<string> files, bool clearMissing)
@@ -562,7 +577,7 @@ public sealed class Api
             try
             {
                 var len = new FileInfo(full).Length;
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(full, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                Native.MoveToTrash(full);
                 deleted++; bytes += len;
             }
             catch { skipped++; }

@@ -34,6 +34,8 @@ public class ScenarioLibrary
 
     public ScenarioFile? Find(string name) { lock (_lock) return _byName.GetValueOrDefault(name); }
 
+    static readonly EnumerationOptions Ci = new() { MatchCasing = MatchCasing.CaseInsensitive };
+
     public void Scan(GamePaths paths)
     {
         var cache = (Json.Read<List<ScenarioFile>>(CachePath) ?? new())
@@ -42,11 +44,11 @@ public class ScenarioLibrary
 
         var files = new List<(FileInfo fi, string source, string? wsId)>();
         if (Directory.Exists(paths.Scenarios))
-            foreach (var f in new DirectoryInfo(paths.Scenarios).EnumerateFiles("*.sce"))
+            foreach (var f in new DirectoryInfo(paths.Scenarios).EnumerateFiles("*.sce", Ci))
                 files.Add((f, "local", null));
         foreach (var ws in paths.Workshop)
             foreach (var dir in new DirectoryInfo(ws).EnumerateDirectories())
-                foreach (var f in dir.EnumerateFiles("*.sce", SearchOption.AllDirectories))
+                foreach (var f in dir.EnumerateFiles("*.sce", new EnumerationOptions { RecurseSubdirectories = true, MatchCasing = MatchCasing.CaseInsensitive }))
                     files.Add((f, "workshop", dir.Name));
 
         var parsed = new ConcurrentBag<ScenarioFile>();

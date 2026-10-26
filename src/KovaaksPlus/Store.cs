@@ -62,7 +62,7 @@ public class AppConfig
     public bool CelebratePB { get; set; } = true;
     public bool Sounds { get; set; } = true;
     public string DefaultMode { get; set; } = "challenge";
-    public string Accent { get; set; } = "#8b5cf6";
+    public string Accent { get; set; } = "#ece8de";
     public bool ShowUninstalled { get; set; } = true;
     public string LibraryView { get; set; } = "grid";
     public string LibrarySort { get; set; } = "recent";
@@ -78,7 +78,7 @@ public class AppConfig
     public string PauseResume { get; set; } = "restart";
     /// <summary>Going back after a run: "restart", "next" (next scenario in the queue) or "focus".</summary>
     public string AfterRun { get; set; } = "restart";
-    /// <summary>KovaaK's restart key (Keys enum name), or "auto" to read the ResetSession bind from KovaaK's Input.ini.</summary>
+    /// <summary>KovaaK's restart key (a Windows virtual-key name such as R, Space or F5), or "auto" to read the ResetSession bind from KovaaK's Input.ini.</summary>
     public string RestartKey { get; set; } = "auto";
     /// <summary>Benchmark difficulty ids shown as filters in the Scenarios sidebar.</summary>
     public List<int> BenchmarkFilters { get; set; } = new();
@@ -150,11 +150,21 @@ public class LibraryData
     }
 }
 
-/// <summary>All app-owned data lives under %APPDATA%\KovaaksPlus — the game's files are never renamed or re-tagged.</summary>
+/// <summary>All app-owned data lives under ~/.local/share/KovaaksPlus — the game's files are never renamed or re-tagged.</summary>
 public static class AppPaths
 {
-    public static readonly string Root = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KovaaksPlus");
+    static string DataHome
+    {
+        get
+        {
+            var x = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            return !string.IsNullOrEmpty(x) && Path.IsPathRooted(x) ? x
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share");
+        }
+    }
+
+    public static readonly string Root = Environment.GetEnvironmentVariable("KPLUS_DATA_DIR") is { Length: > 0 } custom
+        ? custom : Path.Combine(DataHome, "KovaaksPlus");
     public static readonly string Config = Path.Combine(Root, "config.json");
     public static readonly string Library = Path.Combine(Root, "library.json");
     public static readonly string Presets = Path.Combine(Root, "presets");
@@ -162,12 +172,11 @@ public static class AppPaths
     public static readonly string Cache = Path.Combine(Root, "cache");
     public static readonly string Backups = Path.Combine(Root, "backups");
     public static readonly string StatsIndex = Path.Combine(Cache, "stats-index.json");
-    public static readonly string WebViewData = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KovaaksPlus", "WebView2");
+    public static readonly string WebViewData = Path.Combine(Root, "webview");
 
     public static void Ensure()
     {
-        foreach (var d in new[] { Root, Presets, Media, Cache, Backups }) Directory.CreateDirectory(d);
+        foreach (var d in new[] { Root, Presets, Media, Cache, Backups, WebViewData }) Directory.CreateDirectory(d);
     }
 }
 

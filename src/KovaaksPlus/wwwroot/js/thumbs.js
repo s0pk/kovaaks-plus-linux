@@ -8,11 +8,17 @@ export function tagThumbs(s) {
   return state.tags.filter((t) => t.thumbnail && s.tags.includes(t.id)).map((t) => t.thumbnail);
 }
 
+/** Everything that says what kind of scenario this is: KovaaK's own tags plus the names of the user's tags. */
+export function artInfo(s) {
+  const own = (state.tags || []).filter((t) => (s.tags || []).includes(t.id)).map((t) => t.name);
+  return [s.gameTag, ...own].filter(Boolean).join(' ');
+}
+
 export function scenarioThumb(s, extraClass = '') {
   if (!s) return thumb('?', null, null, extraClass);
   if (s.thumbnail) return thumb(s.name, s.thumbnail, null, extraClass);
   const media = tagThumbs(s).slice(0, 4);
-  if (!media.length) return thumb(s.name, null, primaryTagColor(s), extraClass);
+  if (!media.length) return thumb(s.name, null, primaryTagColor(s), extraClass, artInfo(s));
   return splitThumb(media, state.config.tagThumbNames !== false ? keyWord(displayName(s)) : null, extraClass);
 }
 

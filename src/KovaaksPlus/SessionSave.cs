@@ -8,8 +8,7 @@ namespace KovaaksPlus;
 /// </summary>
 public static class SessionSave
 {
-    public static string PathFor() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FPSAimTrainer", "Saved", "SaveGames", "session.sav");
+    public static string PathFor() => Path.Combine(GamePaths.LocalData, "Saved", "SaveGames", "session.sav");
 
     public record Data(string? ScenarioName, List<string> Favorites, DateTime WrittenUtc);
 

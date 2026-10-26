@@ -101,7 +101,7 @@ public class StatsIndex
             return;
         }
 
-        var files = new DirectoryInfo(folder).EnumerateFiles("*Stats.csv").ToList();
+        var files = new DirectoryInfo(folder).EnumerateFiles("*Stats.csv", new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive }).ToList();
         var todo = new List<FileInfo>();
         foreach (var f in files)
         {

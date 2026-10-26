@@ -260,7 +260,7 @@ public class SettingsManager
         ApplyPatch(p.Primary, p.Weapon, p.Ui);
     }
 
-    static string SafeFile(string name) => string.Concat(name.Split(Path.GetInvalidFileNameChars()));
+    static string SafeFile(string name) => Native.SafeFileName(name);
 }
 
 public class PresetStore

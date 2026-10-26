@@ -45,7 +45,7 @@ export async function render(page) {
     const cont = lastRun ? h('div', { class: 'card', style: { overflow: 'hidden', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)' } },
       h('div', { style: { position: 'relative', minHeight: '190px' } }, (lastScen ? scenarioThumb(lastScen) : thumb(lastRun.scenario, null)),),
       h('div', { style: { padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '8px' } },
-        h('div', { class: 'small muted', style: { textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 } }, 'Continue'),
+        h('div', { class: 'small muted' }, 'Continue where you left off'),
         h('div', { style: { font: '700 20px/1.2 var(--font-display)' } }, displayName(lastScen) || lastRun.scenario),
         h('div', { class: 'row small muted', style: { gap: '16px' } }, h('span', null, 'PB ', h('b', { style: { color: 'var(--text)' } }, fmtScore(lastScen?.pb))), h('span', null, `${lastScen?.plays || 0} plays`), h('span', null, timeAgo(lastRun.date))),
         h('div', { class: 'grow' }),

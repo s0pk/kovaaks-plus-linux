@@ -1,4 +1,5 @@
 // Small DOM toolkit + shared formatting helpers.
+import { makeArt } from './art.js';
 
 // Let replaceChildren() skip null/false like h() does, so views can pass conditional children.
 const nativeReplaceChildren = Element.prototype.replaceChildren;
@@ -7,7 +8,7 @@ Element.prototype.replaceChildren = function (...nodes) {
 };
 
 export function h(tag, props, ...children) {
-  const el = tag === 'svg' || tag === 'path' || tag === 'circle' || tag === 'line' || tag === 'g'
+  const el = tag === 'svg' || tag === 'path' || tag === 'circle' || tag === 'line' || tag === 'g' || tag === 'rect' || tag === 'polyline'
     ? document.createElementNS('http://www.w3.org/2000/svg', tag)
     : document.createElement(tag);
   if (props) {
@@ -154,7 +155,7 @@ export const runRowClass = (r) => [r.pb ? 'run-pb' : '', isToday(r.date) ? 'run-
 export const fmtSens = (r) => (r && r.sens ? `${+r.sens.toFixed(2)} ${r.sensScale || ''}`.trim() : '—');
 
 // Media values are paths relative to the media folder ("tags/Static Clicking/thumbnail-1a2b3c.png").
-export const mediaUrl = (name) => (name ? `https://media.kplus/${name.split('/').map(encodeURIComponent).join('/')}` : null);
+export const mediaUrl = (name) => (name ? `/media/${name.split('/').map(encodeURIComponent).join('/')}` : null);
 
 /**
  * Makes an element accept dropped image/video files. onFile(file) is called with the first matching file.
@@ -207,27 +208,17 @@ export function initials(name) {
 }
 
 /** Thumbnail element: user image/video if set, else a generated gradient tile. */
-export function thumb(name, media, tagColor, extraClass = '') {
+export function thumb(name, media, tagColor, extraClass = '', info = '') {
   if (media) {
     const url = mediaUrl(media);
     return h('div', { class: 'thumb ' + extraClass },
       isVideo(media) ? h('video', { src: url, muted: true, loop: true, autoplay: true, playsinline: true }) : h('img', { src: url, loading: 'lazy', alt: '' }));
   }
-  const c1 = tagColor || hashColor(name);
-  const c2 = hashColor(name + '#');
+  const art = makeArt(name, info, tagColor);
   const word = keyWord(name);
   const size = word.length <= 4 ? 1 : word.length <= 6 ? 0.85 : word.length <= 8 ? 0.72 : 0.6;
-  const el = h('div', { class: 'thumb gen ' + extraClass, style: { background: `linear-gradient(135deg, ${c1}, color-mix(in srgb, ${c2} 70%, #0b0d12))` } },
-    reticle(), h('div', { class: 'initials', style: { '--k': size } }, word));
-  return el;
-}
-
-function reticle() {
-  const s = h('svg', { viewBox: '0 0 100 100', class: 'reticle', fill: 'none', stroke: 'currentColor', 'stroke-width': '4' });
-  s.append(h('circle', { cx: 50, cy: 50, r: 30 }), h('circle', { cx: 50, cy: 50, r: 4, fill: 'currentColor' }),
-    h('line', { x1: 50, y1: 4, x2: 50, y2: 30 }), h('line', { x1: 50, y1: 70, x2: 50, y2: 96 }),
-    h('line', { x1: 4, y1: 50, x2: 30, y2: 50 }), h('line', { x1: 70, y1: 50, x2: 96, y2: 50 }));
-  return s;
+  return h('div', { class: 'thumb gen ' + extraClass, 'data-family': art.family, style: { '--art': art.accent, background: art.bg } },
+    art.svg, h('div', { class: 'initials', style: { '--k': size } }, word));
 }
 
 // ---------------- toasts / modals ----------------

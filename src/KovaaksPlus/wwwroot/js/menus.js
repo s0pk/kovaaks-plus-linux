@@ -50,7 +50,7 @@ export async function scenarioMenu(e, name, opts = {}) {
     } },
     { label: 'Details', icon: 'library', onClick: () => openScenario(name) },
     { label: 'Export…', icon: 'download', onClick: () => exportItems({ scenarios: [name], name: displayName(s) }) },
-    s.installed ? { label: 'Show file in Explorer', icon: 'folder', onClick: () => call('library.revealScenario', { name }) } : null,
+    s.installed ? { label: 'Show file in file manager', icon: 'folder', onClick: () => call('library.revealScenario', { name }) } : null,
     ...(opts.extra || []),
   ]);
 }

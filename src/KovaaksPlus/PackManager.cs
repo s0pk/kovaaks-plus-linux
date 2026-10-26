@@ -183,7 +183,7 @@ public class PackManager
             if (entryName == null) return null;
             var entry = zip.GetEntry(entryName);
             if (entry == null || entry.Length > MaxEntry) return null;
-            var ext = Path.GetExtension(entry.Name).ToLowerInvariant();
+            var ext = Path.GetExtension(entry.Name.Replace('\\', '/')).ToLowerInvariant();
             if (!Api.MediaExtensions.Contains(ext)) return null;
             var name = Api.MediaTarget(owner, target, ext);
             entry.ExtractToFile(Api.MediaFull(name));
@@ -225,7 +225,7 @@ public class PackManager
             if (s.File != null && zip.GetEntry(s.File) is { } entry && entry.Length < MaxEntry)
             {
                 Directory.CreateDirectory(_paths.Scenarios);
-                var target = Path.Combine(_paths.Scenarios, Path.GetFileName(entry.Name));
+                var target = Path.Combine(_paths.Scenarios, Path.GetFileName(entry.Name.Replace('\\', '/')));
                 var existing = _scenarios.Find(s.Name);
                 bool identical = existing != null && SameContent(entry, existing.Path);
                 if (identical || (File.Exists(target) && !overwrite)) skipped++;

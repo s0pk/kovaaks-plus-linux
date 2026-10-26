@@ -8,7 +8,7 @@ import { openTagPicker, tagMenu } from './tags.js';
 import { showRunDetail } from './runs.js';
 import { exportItems } from './views/packs.js';
 import { play, pickPreset, presetName, loadPresets } from './play.js';
-import { tagThumbs, splitThumb } from './thumbs.js';
+import { tagThumbs, splitThumb, artInfo } from './thumbs.js';
 import { scenarioLeaderboard, openScenarioLeaderboard } from './lb.js';
 import { scenarioCalculator } from './calc.js';
 
@@ -87,7 +87,7 @@ function render(panel, d) {
     heroMedia
       ? (isVideo(heroMedia) ? h('video', { src: mediaUrl(heroMedia), autoplay: true, muted: true, loop: true, playsinline: true }) : h('img', { src: mediaUrl(heroMedia) }))
       : inherited.length ? (() => { const t = splitThumb(inherited.slice(0, 4), null); t.style.position = 'absolute'; t.style.inset = '0'; t.style.aspectRatio = 'auto'; return t; })()
-        : thumb(d.name, null, primaryTagColor(s)),
+        : thumb(d.name, null, primaryTagColor(s), '', artInfo(s)),
     h('div', { class: 'hero-actions' },
       dropZone(h('button', { class: 'btn sm', onclick: () => setMedia('thumbnail'), title: 'Card thumbnail: click, drop a file here, or paste with Ctrl+V' }, icon('image'), 'Thumbnail'), (f) => saveFile(f, 'thumbnail'), 'media'),
       dropZone(h('button', { class: 'btn sm', onclick: () => setMedia('preview'), title: 'Large preview: image, GIF or MP4/WebM clip (click or drop a file here)' }, icon('film'), 'Preview'), (f) => saveFile(f, 'preview'), 'media'),
@@ -207,7 +207,7 @@ function render(panel, d) {
     h('button', { class: 'btn lg', onclick: () => play(d.name, 'freeplay') }, 'Freeplay'),
     h('div', { class: 'grow' }),
     h('button', { class: 'btn ghost', title: 'Export as .kpack', onclick: () => exportItems({ scenarios: [d.name], name: meta.customName || d.name }) }, icon('download'), 'Export'),
-    f ? h('button', { class: 'btn ghost icon', title: 'Show file in Explorer', onclick: () => call('library.revealScenario', { name: d.name }) }, icon('folder')) : null);
+    f ? h('button', { class: 'btn ghost icon', title: 'Show file in file manager', onclick: () => call('library.revealScenario', { name: d.name }) }, icon('folder')) : null);
 
   panel.replaceChildren(h('div', { class: 'drawer-scroll' }, hero, head, statsSec, historySec, lbSec, calcSec, benchSec, notesSec, runsSec), foot);
 }

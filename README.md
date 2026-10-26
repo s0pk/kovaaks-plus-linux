@@ -1,12 +1,46 @@
-# Kovaak's Plus
+# Kovaak's Plus — Linux port
 
-A companion app for KovaaK's FPS Aim Trainer. You browse, launch, tag and review everything here, and the game only comes forward while you're aiming.
+A native Linux port of [Izunalol/kovaaks-plus](https://github.com/Izunalol/kovaaks-plus), a companion app for KovaaK's FPS Aim Trainer. You browse, launch, tag and review everything here, and the game only comes forward while you're aiming.
 
-## Sharing it with friends
+It runs natively (no Wine). KovaaK's itself is a Windows game, so it runs through Steam Play / Proton as usual; this app sits next to it, watches it from the outside, and talks to Steam.
 
-Send them **`dist\KovaaksPlus.exe`** (one file, ~63 MB, nothing to install). On first launch it finds KovaaK's, their Workshop scenarios and their Steam account on its own. They just click **Let's go**. Their tags, names and presets are their own; you share yours as `.kpack` files (Import / Export page, or drag a `.kpack` onto the window).
+## Install
 
-Requirements: Windows 10/11 with the Edge WebView2 runtime. It ships with Windows 11; the app links to the installer if it's missing.
+Requirements: a recent Linux desktop, Steam with KovaaK's installed, the [.NET 8 SDK](https://dotnet.microsoft.com/download) to build, and for the native window Qt 6.5+ (Quick, Quick Controls, WebSockets, Svg, Multimedia and Wayland; Arch: `qt6-declarative qt6-websockets qt6-svg qt6-multimedia qt6-wayland`) with `cmake` and `ninja` to build it. The UI is a native Qt Quick window with no browser involved. If it isn't built, the app falls back to a Chromium-based browser's app window (Chrome, Chromium, Brave, Edge or Vivaldi), and without one to a built-in WebKitGTK window (`webkit2gtk-4.1` and `gtk3`). File dialogs use the platform's own dialog (or `kdialog`/`zenity` in the browser modes).
+
+```bash
+./build.sh      # → dist/kovaaks-plus (self-contained backend) and dist/kovaaks-plus-ui (native Qt window)
+./install.sh    # → ~/.local/bin, app menu entry and icon (no root)
+kovaaks-plus --diagnose   # shows what the app found and what works on your desktop
+```
+
+On first launch it finds KovaaK's (including libraries on other drives, Flatpak and Snap Steam), its Workshop scenarios and your Steam account by itself. Click **Let's go**. Your data lives in `~/.local/share/KovaaksPlus` (override with `KPLUS_DATA_DIR`). Tags, names and presets are plain files; share yours as `.kpack` files (Import / Export page). Packs use the same format as the Windows version.
+
+### Pause key detection: join the `input` group
+
+Pressing Esc in game is detected by reading the keyboard from `/dev/input` (works on X11 and every Wayland compositor; only the one configured key is looked at). That needs read access:
+
+```bash
+sudo usermod -aG input $USER   # then log out and back in
+```
+
+Without it the app falls back to a limited mode that only sees the key while the game window itself has focus (usually enough with XWayland, but less reliable). `kovaaks-plus --diagnose` tells you which mode you're in.
+
+### Desktop support
+
+| Desktop | Focus / close game | Pause detection | Notes |
+|---|---|---|---|
+| KDE Plasma (Wayland or X11) | KWin script (tested) | XWayland/X11 focus + evdev (tested) | Reference platform |
+| X11 (any WM) | EWMH | works | Some WMs apply focus-stealing prevention |
+| Hyprland | `hyprctl` | via `hyprctl` | **Untested** |
+| Sway | `swaymsg` | via `swaymsg` | **Untested** |
+| GNOME Wayland | EWMH via XWayland only | XWayland only | Mutter refuses to let background apps take focus; expect "ready" notifications instead of a raise |
+
+Force a backend with `KPLUS_WINDOW_BACKEND=kwin|hyprland|sway|x11|none`. The restart key is pressed through XTEST (reaches XWayland, i.e. Proton games); `ydotool` is used as a fallback.
+
+UI host and rendering: the native Qt window is used when `kovaaks-plus-ui` is installed next to the app (`KPLUS_UI_BIN=<path>` points at another build, `KPLUS_GPU_API=opengl|vulkan|software` picks its scene-graph back end); `KPLUS_HOST=chromium` or `KPLUS_HOST=webkit` forces a browser window or the built-in WebKitGTK window instead; `KPLUS_BROWSER=<path>` picks a specific browser; in Chromium `KPLUS_GPU_API=gl|vulkan|software` selects the GPU back end (default `gl`; `vulkan` runs through ANGLE and measured the same on an RTX 4060); `KPLUS_BROWSER_FLAGS="..."` adds extra browser flags. The app talks to its window over a loopback WebSocket protected by a per-run secret token and an origin check.
+
+Environment switches: `KPLUS_DEV=1` (devtools and UI logging), `KPLUS_UI_DIR=<wwwroot>` (edit the UI live), `KPLUS_GPU_RENDER=1` (use WebKit's hardware renderer instead of the software fallback, see below).
 
 ## How the window switching works
 
@@ -17,7 +51,7 @@ Requirements: Windows 10/11 with the Edge WebView2 runtime. It ships with Window
 | A run ends | KovaaK's writes a stats CSV, the app picks it up and comes forward with your results, PB comparison and benchmark rank. A new PB gets the gold screen and confetti |
 
 Tips:
-- Use **Windowed Fullscreen** in KovaaK's so switching is instant.
+- Use **Windowed Fullscreen** in KovaaK's so switching is instant (Proton: exclusive fullscreen also works but switches slower).
 - Keep KovaaK's **Pause on loss of focus** ON (it is by default).
 
 The pause bar shows the scenario that's loaded. It knows this from:
@@ -71,7 +105,7 @@ The queue is the list you launched from: a benchmark difficulty, a calculator pl
 
 Star a player (in the picker, on the Viewing banner, or by right-clicking a leaderboard row) to add them to **Favorites**. Favorites show as quick chips at the top of the Benchmarks pages. The picker also lists your **Steam friends** who are on evxl.app; type to filter them, or press Enter to search everyone. It's temporary: leaving the Benchmarks tab or relaunching the app switches back to you. Their scores are never written to your offline cache.
 
-The app never injects into or reads the game's memory. It watches the stats folder, the process list and the pause key (a standard low-level keyboard hook on its own thread).
+The app never injects into or reads the game's memory. It watches the stats folder, the process list and the pause key (evdev keyboard reads on their own thread).
 
 ## Why settings changes still restart KovaaK's
 
@@ -79,14 +113,14 @@ The game keeps its settings in memory and rewrites `PrimaryUserSettings.json` co
 
 ## What it stores, and where
 
-All app data lives in `%APPDATA%\KovaaksPlus` and never inside the game's folders:
+All app data lives in `~/.local/share/KovaaksPlus` and never inside the game's folders:
 - `library.json`: custom names, tags, notes, favorites, thumbnails
-- `presets\`: settings presets
-- `media\`: thumbnails, previews and tag icons, one folder per item (`media\scenarios\<scenario>\`, `media\tags\<tag>\`, `media\presets\<preset>\`). App Settings → Data → Thumbnails & icons opens it.
-- `backups\`: automatic snapshots of KovaaK's settings, taken before every change
-- `cache\`: stats index and benchmark data
+- `presets/`: settings presets
+- `media/`: thumbnails, previews and tag icons, one folder per item (`media/scenarios/<scenario>/`, `media/tags/<tag>/`, `media/presets/<preset>/`). App Settings → Data → Thumbnails & icons opens it.
+- `backups/`: automatic snapshots of KovaaK's settings, taken before every change
+- `cache/`: stats index and benchmark data
 
-**Cleaning up:** replacing or removing a thumbnail leaves the old file in media\. App Settings → Data → **Clean up unused files** scans for files no scenario, tag or preset uses, lets you pick which to remove, and sends them to the Recycle Bin. It also removes empty folders, and can clear links to files that were deleted by hand. Turn on **Clean up automatically on launch** to do this quietly each time the app starts (off by default).
+**Cleaning up:** replacing or removing a thumbnail leaves the old file in media/. App Settings → Data → **Clean up unused files** scans for files no scenario, tag or preset uses, lets you pick which to remove, and sends them to the Trash. It also removes empty folders, and can clear links to files that were deleted by hand. Turn on **Clean up automatically on launch** to do this quietly each time the app starts (off by default).
 
 Scenario files are never renamed or edited. The only time the app writes into KovaaK's folders:
 - **Applying settings or a preset.** It edits `PrimaryUserSettings.json`, `weaponsettings.ini` and `UI.json` after backing them up. If KovaaK's is running, the app closes it, applies the change and relaunches it, because the game rewrites these files on exit.
@@ -104,20 +138,31 @@ Benchmarks work like evxl.app: one entry per benchmark, difficulties as tabs, th
 
 ## Building from source
 
-```powershell
-winget install Microsoft.DotNet.SDK.8
-.\build.ps1          # → dist\KovaaksPlus.exe
+```bash
+./build.sh                     # release binary → dist/kovaaks-plus
+dotnet run --project src/KovaaksPlus            # run from source
+dotnet run --project tests/Smoke -- --network   # RPC smoke tests against a temp copy of your game data
 ```
 
-Project layout (`src\KovaaksPlus`):
-- `MainForm.cs`: WebView2 host, JSON-RPC bridge
+Project layout (`src/KovaaksPlus`):
+- `HostBase.cs`/`SocketHost.cs`: JSON-RPC bridge shared by the UI hosts; `QmlHost.cs` runs the native Qt window, `ChromiumHost.cs` a browser app window, `AppWindow.cs` the Photino (WebKitGTK) fallback
+- `UiServer.cs`: loopback server for the UI, thumbnails and crosshairs (supports video seeking)
 - `Api.cs`: every UI action
-- `GameWatcher.cs`: process, hook, stats watcher and focus switching
-- `StatsIndex.cs`: CSV parsing and cache
-- `ScenarioLibrary.cs`: `.sce` scanning and the tag/name overlay
-- `SettingsManager.cs`: settings, presets and backups
-- `PackManager.cs`: `.kpack` import/export
-- `EvxlClient.cs`: benchmark data
-- `wwwroot\`: the UI (plain HTML/CSS/JS modules, no build step)
+- `GameWatcher.cs`: game process, key watcher, stats watcher and focus switching
+- `Platform/`: Linux layer: X11/XTEST, window-system backends (KWin, Hyprland, Sway, EWMH), evdev key watcher, /proc helpers
+- `GamePaths.cs`: finds Steam libraries and the game's Proton prefix
+- `StatsIndex.cs`, `ScenarioLibrary.cs`, `SettingsManager.cs`, `PackManager.cs`, `EvxlClient.cs`: unchanged logic from upstream
+- `wwwroot/`: the web UI used by the browser hosts (plain HTML/CSS/JS modules, no build step)
 
-For UI development, set `KPLUS_UI_DIR` to the `wwwroot` folder and `KPLUS_DEV=1` (enables DevTools) to edit the UI live without rebuilding.
+The native UI lives in `ui/` (Qt Quick / QML, one flat folder of components in `ui/qml`, ported logic in `ui/qml/js`, bundled fonts in `ui/assets`). It speaks the same JSON-RPC to the backend, so both UIs stay in step. Build it on its own with `cmake -S ui -B ui/build -G Ninja && cmake --build ui/build`.
+
+## Look and feel
+
+The Linux port ships its own visual identity, "Range": charcoal and bone, squared frames, large condensed numerals (Big Shoulders Display for headings and scores, Instrument Sans for text). The interface is deliberately colourless so scores, PBs, ranks and scenario art carry the colour. A reticle-style corner bracket marks what is selected, hovered or current. The native UI implements it with design tokens in `ui/qml/Theme.qml`, the web UI with `wwwroot/css/range.css` on top of the upstream `app.css`; the old themes (Midnight, OLED, Nord…) and the font choices in App Settings → Appearance still work. Both fonts are bundled under the SIL Open Font License (`wwwroot/fonts/LICENSE-*.txt`, `ui/assets/LICENSE-*.txt`).
+
+## Notes for this port
+
+- **NVIDIA + Wayland:** the app always sets `__NV_DISABLE_EXPLICIT_SYNC=1` for itself (also used by the Qt window). WebKitGTK crashes at startup with "explicit sync is used, but no acquire point is set" on some NVIDIA drivers. The app sets `__NV_DISABLE_EXPLICIT_SYNC=1` (always) and `WEBKIT_DISABLE_DMABUF_RENDERER=1` (software rendering, the safe default) for itself unless you set them yourself; `KPLUS_GPU_RENDER=1` keeps the hardware renderer.
+- KovaaK's per-user files (`session.sav`, `Input.ini`) are read from the game's Proton prefix (`steamapps/compatdata/824270/pfx/...`).
+- Native Wayland (non-XWayland) game windows can be focused and closed, but the "is the game focused" check used for pause detection only sees X11/XWayland windows on KDE.
+- The upstream project ships no license file; this port is for personal use. Ask the upstream author before redistributing.

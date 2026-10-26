@@ -3,7 +3,7 @@ import { h, icon, toggle, toast, seg, modal, confirmBox } from '../ui.js';
 import { state, saveConfig, loadLibrary } from '../state.js';
 import { THEMES, FONTS, BASE_KEYS, appearance, effectiveColors, themeById } from '../theme.js';
 
-const ACCENTS = ['#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#ec4899'];
+const ACCENTS = ['#ece8de', '#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#ec4899'];
 const KEYS = ['Escape', 'Tab', 'Oemtilde', 'P', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
 const KEY_LABEL = { Escape: 'Esc', Oemtilde: '` (backtick)', Tab: 'Tab' };
 
@@ -24,7 +24,7 @@ export async function render(page) {
     [['ask', 'Ask each time'], ['auto', 'Apply automatically'], ['off', 'Never apply']].map(([v, l]) => h('option', { value: v, selected: v === (c.presetMode || 'ask') }, l)));
   presetSel.addEventListener('change', () => set({ presetMode: presetSel.value }));
 
-  const custom = h('input', { type: 'color', class: 'color-in', value: c.accent || '#8b5cf6' });
+  const custom = h('input', { type: 'color', class: 'color-in', value: c.accent || '#ece8de' });
   custom.addEventListener('change', () => set({ accent: custom.value }));
 
   page.append(
@@ -42,7 +42,7 @@ export async function render(page) {
               loadLibrary(true).catch(() => { });
               page.replaceChildren(); render(page);
             } }, icon('folder'), 'Change'),
-            h('button', { class: 'btn ghost sm icon', title: 'Open in Explorer', onclick: () => call('app.reveal', { what: 'game' }) }, icon('external')))),
+            h('button', { class: 'btn ghost sm icon', title: 'Open in file manager', onclick: () => call('app.reveal', { what: 'game' }) }, icon('external')))),
           row('Workshop folders', `${(c.workshopPaths || []).length} found`, h('button', { class: 'btn sm', onclick: async () => {
             const d = await call('app.detect');
             await set({ workshopPaths: d.workshopPaths, gamePath: c.gamePath || d.gamePath }, `Found ${d.workshopPaths.length} workshop folder(s)`);
@@ -77,12 +77,12 @@ export async function render(page) {
           row('Kovaak\'s Plus data', 'Tags, names, presets, thumbnails, backups', h('button', { class: 'btn sm', onclick: () => call('app.openDataFolder') }, icon('folder'), 'Open')),
           row('Thumbnails & icons', 'media\\scenarios, media\\tags and media\\presets, one folder per item', h('button', { class: 'btn sm', onclick: () => call('media.openFolder') }, icon('folder'), 'Open')),
           row('Clean up unused files', 'Find thumbnails, previews and icons nothing uses any more, and links to files that are gone', h('button', { class: 'btn sm', onclick: (e) => cleanUpMedia(e.currentTarget) }, icon('trash'), h('span', null, 'Scan'))),
-          row('Clean up automatically on launch', 'Each time the app starts, unused files go to the Recycle Bin and broken links are cleared', toggle(c.autoCleanMedia, (v) => set({ autoCleanMedia: v }))),
+          row('Clean up automatically on launch', 'Each time the app starts, unused files go to the Trash and broken links are cleared', toggle(c.autoCleanMedia, (v) => set({ autoCleanMedia: v }))),
           row('KovaaK\'s stats folder', 'Where run CSVs are saved', h('button', { class: 'btn sm', onclick: () => call('app.reveal', { what: 'stats' }) }, icon('folder'), 'Open')),
           row('Re-run setup', 'Walk through first-time setup again', h('button', { class: 'btn sm', onclick: async () => { await saveConfig({ setupComplete: false }); location.reload(); } }, 'Run setup')),
         ]),
         h('div', { class: 'card pad small muted' },
-          h('b', { style: { color: 'var(--text-2)' } }, 'Sharing with friends: '), 'send them ', h('b', null, 'KovaaksPlus.exe'), '. It finds KovaaK\'s, their workshop scenarios and their Steam account by itself. Your tags and presets travel separately as .kpack files.',
+          h('b', { style: { color: 'var(--text-2)' } }, 'Sharing with friends: '), 'the app finds KovaaK\'s, their workshop scenarios and their Steam account by itself. Your tags and presets travel separately as .kpack files.',
           h('div', { style: { marginTop: '10px' } }, 'Benchmark data from ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); call('app.openUrl', { url: 'https://evxl.app' }); } }, 'evxl.app'), ' and KovaaK\'s. Kovaak\'s Plus never modifies the game, reads its memory, or touches your scenario files (except when you import a pack).')))));
 }
 
@@ -126,7 +126,7 @@ async function cleanUpMedia(btn) {
     title: 'Clean up unused files', wide: true,
     body: h('div', { class: 'col', style: { gap: '12px' } },
       h('div', null, files.length
-        ? 'These media files aren\'t used by any scenario, tag or preset (usually thumbnails and previews you replaced or removed). They go to the Recycle Bin, so you can still restore them.'
+        ? 'These media files aren\'t used by any scenario, tag or preset (usually thumbnails and previews you replaced or removed). They go to the Trash, so you can still restore them.'
         : 'No unused media files.', scan.emptyFolders ? ` Empty folders (${scan.emptyFolders}) are removed too.` : ''),
       files.length ? h('div', { class: 'row' }, summary, h('div', { class: 'grow' }),
         h('button', { class: 'btn ghost sm', onclick: () => { const all = chosen.size !== files.length; list.querySelectorAll('input').forEach((cb, i) => { cb.checked = all; all ? chosen.add(files[i].path) : chosen.delete(files[i].path); }); drawSummary(); } }, 'Select all / none')) : null,
@@ -138,7 +138,7 @@ async function cleanUpMedia(btn) {
         try {
           const r = await call('media.cleanUnused', { files: [...chosen], clearMissing });
           const parts = [];
-          if (r.deleted) parts.push(`${r.deleted} file${r.deleted === 1 ? '' : 's'} (${fmtBytes(r.bytes)}) moved to the Recycle Bin`);
+          if (r.deleted) parts.push(`${r.deleted} file${r.deleted === 1 ? '' : 's'} (${fmtBytes(r.bytes)}) moved to the Trash`);
           if (r.folders) parts.push(`${r.folders} empty folder${r.folders === 1 ? '' : 's'} removed`);
           if (r.cleared) parts.push(`${r.cleared} broken link${r.cleared === 1 ? '' : 's'} cleared`);
           if (r.skipped) parts.push(`${r.skipped} skipped (now in use or already gone)`);
@@ -160,7 +160,7 @@ export async function autoCleanMedia() {
     if (!scan.files.length && !scan.missing.length && !scan.emptyFolders) return;
     const r = await call('media.cleanUnused', { files: scan.files.map((f) => f.path), clearMissing: true });
     const parts = [];
-    if (r.deleted) parts.push(`${r.deleted} unused file${r.deleted === 1 ? '' : 's'} (${fmtBytes(r.bytes)}) moved to the Recycle Bin`);
+    if (r.deleted) parts.push(`${r.deleted} unused file${r.deleted === 1 ? '' : 's'} (${fmtBytes(r.bytes)}) moved to the Trash`);
     if (r.cleared) parts.push(`${r.cleared} broken link${r.cleared === 1 ? '' : 's'} cleared`);
     if (parts.length) toast('Cleanup: ' + parts.join(' · '), 'ok');
     if (r.cleared) await loadLibrary(true);
@@ -198,7 +198,7 @@ function appearanceSection(c, set) {
   const draw = () => {
     const a = appearance();
     const colors = effectiveColors(a);
-    const accent = state.config.accent || '#8b5cf6';
+    const accent = state.config.accent || '#ece8de';
     const colorIn = (value, onPick) => {
       const i = h('input', { type: 'color', class: 'color-in', value });
       i.addEventListener('change', () => onPick(i.value));

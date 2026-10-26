@@ -50,7 +50,7 @@ export function showResults(d) {
     rankEl = h('div', { class: 'col', style: { alignItems: 'center', gap: '10px', marginTop: '18px' } },
       rk.rankAfter > rk.rankBefore
         ? h('div', { class: 'rankup', '--rc': color }, rankImg(evxlRankIcon(rk.benchmark, after.name), 38),
-          h('div', { style: { textAlign: 'left' } }, h('div', { class: 'small muted', style: { letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 700 } }, 'Rank up'), h('b', null, after.name)))
+          h('div', { style: { textAlign: 'left' } }, h('div', { class: 'small muted', style: { fontWeight: 600 } }, 'Rank up'), h('b', null, after.name)))
         : h('span', { class: 'rank-pill', '--rc': color }, rankImg(evxlRankIcon(rk.benchmark, after.name), 20), after.name),
       h('div', { class: 'small muted' }, `${rk.benchmark || 'Benchmark'}${rk.difficulty ? ' ' + rk.difficulty : ''} · ${rk.category || ''}`),
       next ? h('div', { style: { width: '340px' } },
@@ -178,7 +178,7 @@ function confetti(host) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.width = innerWidth * dpr, H = canvas.height = innerHeight * dpr;
-  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b5cf6';
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ece8de';
   const colors = ['#fbbf24', '#fde68a', '#f59e0b', accent, '#22d3ee', '#ffffff', '#f472b6'];
   const parts = [];
   const burst = (x, y, n, spread, dir = -Math.PI / 2, speed = 1) => {

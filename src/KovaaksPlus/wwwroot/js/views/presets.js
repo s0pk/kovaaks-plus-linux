@@ -105,7 +105,7 @@ function presetSpecs(p) {
 
 function presetCard(p, refresh) {
   const sp = presetSpecs(p);
-  const chUrl = p.crosshairData ? `data:image/png;base64,${p.crosshairData}` : (sp.crosshair ? `https://crosshair.kplus/${encodeURIComponent(sp.crosshair)}` : null);
+  const chUrl = p.crosshairData ? `data:image/png;base64,${p.crosshairData}` : (sp.crosshair ? `/crosshair/${encodeURIComponent(sp.crosshair)}` : null);
   const top = p.thumbnail ? thumb(p.name, p.thumbnail) : (() => {
     const t = thumb(p.name, null);
     if (chUrl) { t.replaceChildren(h('div', { class: 'crosshair-preview', style: { width: '90px', height: '90px', background: 'rgba(0,0,0,.35)', border: 0 } }, h('img', { src: chUrl, style: { maxWidth: '70px', maxHeight: '70px' } }))); }
@@ -335,7 +335,7 @@ async function renderLive(body) {
 }
 
 function crosshairPicker(files, value, onPick) {
-  const preview = h('div', { class: 'crosshair-preview' }, value ? h('img', { src: `https://crosshair.kplus/${encodeURIComponent(value)}` }) : null);
+  const preview = h('div', { class: 'crosshair-preview' }, value ? h('img', { src: `/crosshair/${encodeURIComponent(value)}` }) : null);
   const label = h('span', { class: 'small ellipsis', style: { maxWidth: '120px' } }, value || 'None');
   const btn = h('button', { class: 'btn sm' }, 'Choose');
   btn.onclick = () => {
@@ -343,8 +343,8 @@ function crosshairPicker(files, value, onPick) {
       title: 'Choose a crosshair', wide: true,
       body: h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '10px' } }, files.map((f) =>
         h('div', { class: 'col', style: { alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '8px', borderRadius: '10px', border: '1px solid ' + (f === value ? 'var(--accent)' : 'transparent') },
-          onclick: () => { value = f; onPick(f); preview.replaceChildren(h('img', { src: `https://crosshair.kplus/${encodeURIComponent(f)}` })); label.textContent = f; m.close(); } },
-          h('div', { class: 'crosshair-preview', style: { width: '64px', height: '64px' } }, h('img', { src: `https://crosshair.kplus/${encodeURIComponent(f)}`, loading: 'lazy' })),
+          onclick: () => { value = f; onPick(f); preview.replaceChildren(h('img', { src: `/crosshair/${encodeURIComponent(f)}` })); label.textContent = f; m.close(); } },
+          h('div', { class: 'crosshair-preview', style: { width: '64px', height: '64px' } }, h('img', { src: `/crosshair/${encodeURIComponent(f)}`, loading: 'lazy' })),
           h('span', { class: 'small muted ellipsis', style: { maxWidth: '86px' } }, f.replace(/\.png$/i, ''))))),
     });
   };

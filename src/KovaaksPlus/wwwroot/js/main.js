@@ -120,7 +120,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Dropping a .kpack anywhere imports it (and stops WebView2 from navigating to dropped files).
+// Dropping a .kpack anywhere imports it (and stops the browser view from navigating to dropped files).
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => {
   if (e.defaultPrevented) return;
@@ -156,6 +156,10 @@ on('stats.progress', (d) => { state.statsProgress = d; notify('statsProgress', d
 on('stats.ready', () => { state.statsReady = true; state.statsProgress = null; loadLibrary(true).catch(() => { }); notify('statsReady'); });
 on('evxl.catalogProgress', (d) => notify('catalog', d));
 on('toast', (d) => toast(d.text, d.kind || ''));
+// Zoom is applied here when the UI runs in a browser app window (the WebKit host zooms natively).
+on('zoom', (d) => { document.documentElement.style.zoom = d.factor === 1 ? '' : String(d.factor); });
+// A browser window would otherwise show its own page menu where the UI has no menu of its own.
+document.addEventListener('contextmenu', (e) => { if (!e.defaultPrevented && !new URLSearchParams(location.search).has('dev')) e.preventDefault(); });
 
 // ---------------- boot ----------------
 async function boot() {

@@ -8,6 +8,7 @@ export const BASE_KEYS = [
 ];
 
 export const THEMES = {
+  range: { label: 'Range', colors: { bg: '#141513', surface: '#1b1c1a', border: '#2d2f2b', text: '#ece8de', muted: '#8d9085', sidebar: '#10110f' } },
   midnight: { label: 'Midnight', colors: { bg: '#0b0d12', surface: '#141821', border: '#252b3a', text: '#e8eaf0', muted: '#7d859a', sidebar: '#0d1016' } },
   oled: { label: 'OLED black', colors: { bg: '#000000', surface: '#0c0d10', border: '#1c1e25', text: '#ececf1', muted: '#7a8193', sidebar: '#000000' } },
   graphite: { label: 'Graphite', colors: { bg: '#121212', surface: '#1c1c1c', border: '#2e2e2e', text: '#ededed', muted: '#8a8a8a', sidebar: '#141414' } },
@@ -18,7 +19,8 @@ export const THEMES = {
 };
 
 export const FONTS = {
-  system: { label: 'Segoe UI (default)', text: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif', display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif' },
+  system: { label: 'Range (default)', text: '"Instrument Sans", system-ui, "Segoe UI", sans-serif', display: '"Big Shoulders Display", "Instrument Sans", system-ui, sans-serif' },
+  segoe: { label: 'Segoe UI', text: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif', display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif' },
   bahnschrift: { label: 'Bahnschrift', text: 'Bahnschrift, "Segoe UI", sans-serif', display: 'Bahnschrift, "Segoe UI", sans-serif' },
   trebuchet: { label: 'Trebuchet MS', text: '"Trebuchet MS", "Segoe UI", sans-serif', display: '"Trebuchet MS", "Segoe UI", sans-serif' },
   verdana: { label: 'Verdana', text: 'Verdana, "Segoe UI", sans-serif', display: 'Verdana, "Segoe UI", sans-serif' },
@@ -26,9 +28,19 @@ export const FONTS = {
 };
 
 export const APPEARANCE_DEFAULTS = {
-  theme: 'midnight', accent2: '#22d3ee', custom: {}, userThemes: [], font: 'system', scale: 100, radius: 'rounded', radiusPx: 12,
-  density: 'comfortable', cardSize: 'medium', glow: true, motion: true, dimOld: true, pbGradient: true, hoverPreview: true,
+  theme: 'range', accent2: '#8fb8b0', custom: {}, userThemes: [], font: 'system', scale: 100, radius: 'rounded', radiusPx: 4,
+  density: 'comfortable', cardSize: 'medium', glow: false, motion: true, dimOld: true, pbGradient: true, hoverPreview: true,
 };
+
+export const DEFAULT_ACCENT = '#ece8de';
+
+/** Text colour that stays readable on top of a given background (dark ink on light accents, white on dark ones). */
+export function onColor(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return '#141513';
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#141513' : '#ffffff';
+}
 
 export function appearance() {
   const a = { ...APPEARANCE_DEFAULTS, ...((state.config.ui || {}).appearance || {}) };
@@ -41,7 +53,7 @@ export function appearance() {
 export function themeById(id, a = appearance()) {
   if (THEMES[id]) return THEMES[id];
   const u = a.userThemes.find((t) => t.id === id);
-  return u ? { label: u.name, colors: u.colors, user: true, accent: u.accent, accent2: u.accent2 } : THEMES.midnight;
+  return u ? { label: u.name, colors: u.colors, user: true, accent: u.accent, accent2: u.accent2 } : THEMES.range;
 }
 
 /** The six base colours in effect: theme colours with any per-colour overrides on top. */
@@ -65,8 +77,10 @@ export function applyAppearance() {
   root.setProperty('--text-2', mix(c.text, c.muted, 40));
   root.setProperty('--muted', c.muted);
   root.setProperty('--sidebar', c.sidebar || c.bg);
-  root.setProperty('--accent', state.config.accent || '#8b5cf6');
-  root.setProperty('--accent-2', a.accent2 || '#22d3ee');
+  const accent = state.config.accent || DEFAULT_ACCENT;
+  root.setProperty('--accent', accent);
+  root.setProperty('--on-accent', onColor(accent));
+  root.setProperty('--accent-2', a.accent2 || '#8fb8b0');
   const font = FONTS[a.font] || FONTS.system;
   root.setProperty('--font', font.text);
   root.setProperty('--font-display', font.display);
